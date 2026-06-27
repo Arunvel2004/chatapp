@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://192.168.31.76:3000';
+const SOCKET_URL = 'https://chatapp-6-ejr7.onrender.com';
 
 class SocketService {
   socket = null;
