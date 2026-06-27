@@ -33,6 +33,10 @@ class SocketService {
     this.socket.on('new_message', callback);
   }
 
+  onChatHistory(callback) {
+    this.socket.on('chat_history', callback);
+  }
+
   startTyping(roomId, userId) {
     this.socket.emit('typing_start', { roomId, userId });
   }

@@ -3,12 +3,25 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccount.json');
+// Try to load serviceAccount from file (local), otherwise use Environment Variables (Render)
+let credential;
+try {
+  const serviceAccount = require('./serviceAccount.json');
+  credential = admin.credential.cert(serviceAccount);
+} catch (error) {
+  credential = admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
+  });
+}
 
 // Initialize Firebase
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential,
 });
+
+const db = admin.firestore();
 
 const app = express();
 app.use(cors());
@@ -31,7 +44,7 @@ io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
 
   // User joins a room
-  socket.on('join_room', ({ roomId, userId, username, pushToken }) => {
+  socket.on('join_room', async ({ roomId, userId, username, pushToken }) => {
     socket.join(roomId);
     onlineUsers[socket.id] = { userId, username, roomId };
 
@@ -41,12 +54,45 @@ io.on('connection', (socket) => {
     }
 
     console.log(`${username} joined room: ${roomId}`);
+
+    // Fetch chat history from Firestore
+    try {
+      const messagesSnapshot = await db
+        .collection('rooms')
+        .doc(roomId)
+        .collection('messages')
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+
+      const messages = [];
+      messagesSnapshot.forEach((doc) => {
+        messages.push(doc.data());
+      });
+
+      // Send the history back to the user who just joined, in chronological order
+      socket.emit('chat_history', messages.reverse());
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+    }
   });
 
   // User sends a message
   socket.on('send_message', async (message) => {
     // Send to everyone in room
     io.to(message.roomId).emit('new_message', message);
+
+    // Save to Firestore
+    try {
+      await db
+        .collection('rooms')
+        .doc(message.roomId)
+        .collection('messages')
+        .doc(message.id)
+        .set(message);
+    } catch (error) {
+      console.error('Error saving message to Firestore:', error);
+    }
 
     // Send push notification to offline users
     await sendPushNotification(message);

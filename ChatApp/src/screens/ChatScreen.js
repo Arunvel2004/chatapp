@@ -20,6 +20,7 @@ export default function ChatScreen() {
   const currentUser = useChatStore((s) => s.currentUser);
   const currentRoom = useChatStore((s) => s.currentRoom);
   const messages = useChatStore((s) => s.messages);
+  const setMessages = useChatStore((s) => s.setMessages);
   const addMessage = useChatStore((s) => s.addMessage);
   const isTyping = useChatStore((s) => s.isTyping);
   const setIsTyping = useChatStore((s) => s.setIsTyping);
@@ -33,6 +34,11 @@ export default function ChatScreen() {
       const pushToken = await notificationService.registerForPushNotifications();
       socketService.joinRoom(currentRoom, currentUser.id, currentUser.username, pushToken);
       
+      // Listen for chat history
+      socketService.onChatHistory((history) => {
+        setMessages(history);
+      });
+
       // Listen for new messages
       socketService.onNewMessage((message) => {
         addMessage(message);
