@@ -21,8 +21,12 @@ class SocketService {
     return this.socket;
   }
 
-  joinRoom(roomId, userId, username) {
-    this.socket.emit('join_room', { roomId, userId, username });
+  onConnect(callback) {
+    this.socket.on('connect', callback);
+  }
+
+  joinRoom(roomId, userId, username, pushToken) {
+    this.socket.emit('join_room', { roomId, userId, username, pushToken });
   }
 
   sendMessage(message) {

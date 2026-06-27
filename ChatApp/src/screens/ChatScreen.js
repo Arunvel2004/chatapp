@@ -31,9 +31,16 @@ export default function ChatScreen() {
       socketService.connect();
 
       // Join the room
-      const pushToken = await notificationService.registerForPushNotifications();
-      socketService.joinRoom(currentRoom, currentUser.id, currentUser.username, pushToken);
-      
+      let pushToken = null;
+      try {
+        pushToken = await notificationService.registerForPushNotifications();
+      } catch (error) {
+        console.log('Push notification registration failed:', error);
+      }
+      // Join the room every time socket connects (handles reconnects)
+      socketService.onConnect(() => {
+        socketService.joinRoom(currentRoom, currentUser.id, currentUser.username, pushToken);
+      });
       // Listen for chat history
       socketService.onChatHistory((history) => {
         setMessages(history);
