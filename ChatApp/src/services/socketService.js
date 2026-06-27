@@ -1,0 +1,60 @@
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = 'http://192.168.31.76:3000';
+
+class SocketService {
+  socket = null;
+
+  connect(userId, username) {
+    this.socket = io(SOCKET_URL, {
+      transports: ['websocket'],
+    });
+
+    this.socket.on('connect', () => {
+      console.log('✅ Socket connected!');
+    });
+
+    this.socket.on('disconnect', () => {
+      console.log('❌ Socket disconnected!');
+    });
+
+    return this.socket;
+  }
+
+  joinRoom(roomId, userId, username) {
+    this.socket.emit('join_room', { roomId, userId, username });
+  }
+
+  sendMessage(message) {
+    this.socket.emit('send_message', message);
+  }
+
+  onNewMessage(callback) {
+    this.socket.on('new_message', callback);
+  }
+
+  startTyping(roomId, userId) {
+    this.socket.emit('typing_start', { roomId, userId });
+  }
+
+  stopTyping(roomId, userId) {
+    this.socket.emit('typing_stop', { roomId, userId });
+  }
+
+  onTyping(callback) {
+    this.socket.on('user_typing', callback);
+  }
+
+  onStopTyping(callback) {
+    this.socket.on('user_stop_typing', callback);
+  }
+
+  disconnect() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+  }
+}
+
+export default new SocketService();
